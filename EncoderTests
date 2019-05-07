@@ -1,0 +1,248 @@
+
+#define TWI_FREQ 37390L  // reduce communication rate of I2C bus to 38.4 khz 
+#include <Wire.h>
+
+#define DEVICE_ADDRESS 0x05
+#define REG_MANUFACTURER 0x08
+#define REG_VERSION 0x00
+#define REG_SENSOR_TYPE 0x10
+#define NUM_BYTES 8
+#define M1_POWER 0x45
+#define M2_POWER 0x46
+#define M1_ENCODER_WRITE 0x40
+#define M1_ENCODER_READ 0x4C
+#define M2_ENCODER 0x50
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+int getManufacturer(char *s) // return length of s
+{
+ int i = 0; // declare variable i which represents the index into the array; arrays begin at 0 which is why we set i=0
+ // Read from device
+ Wire.beginTransmission(DEVICE_ADDRESS); //begin transmission at DEVICE_ADDRESS (connect to device 0x05
+ Wire.write(REG_MANUFACTURER); // write to the internal register you want to read; the manufacturer
+ Wire.endTransmission(1); // send stop sequence (true(1)); master will release I2C bus
+
+ Wire.requestFrom(DEVICE_ADDRESS, NUM_BYTES); // request 8 bytes from DEVICE_ADDRESS
+ while (Wire.available()) // while available,
+ {
+   s[i++] = Wire.read(); // i++ increments i so we can store the new data in a sequential space on the array
+ }
+ s[i] = '\0'; // all strings in C are terminated with a zero (null character); need zero because zeros terminate strings and tells the print ln when to stop.
+ return i; // length of the string contained in variable i 
+}
+
+int getSensorType(char *s)// return length of s
+{
+ int i; // declare variable i which represents the index into the array; arrays begin at 0 which is why we set i=0
+ // Read from device
+ Wire.beginTransmission(DEVICE_ADDRESS); //begin transmission at DEVICE_ADDRESS (connect to device 0x05
+ Wire.write(REG_SENSOR_TYPE); // write to the internal register you want to read; the sensor type
+ Wire.endTransmission(1); // send stop sequence (true(1)); master will release I2C bus
+
+ Wire.requestFrom(DEVICE_ADDRESS, NUM_BYTES); // request 8 bytes from DEVICE_ADDRESS
+ while (Wire.available()) // while available,
+ {
+   s[i++] = Wire.read(); // i++ increments i so we can store the new data in a sequential space on the array
+ }
+ s[i] = '\0'; // all strings in C are terminated with a zero (null character); need zero because zeros terminate strings and tells the print ln when to stop.
+ return i; // length of the string contained in variable i 
+}
+
+int getVersionNumber(char *s)// return length of s
+{
+ int i; // declare variable i which represents the index into the array; arrays begin at 0 which is why we set i=0
+ // Read from device
+ Wire.beginTransmission(DEVICE_ADDRESS); // begin transmission at DEVICE_ADDRESS (connect to device 0x05
+ Wire.write(REG_VERSION); // write to the internal register you want to read; the sensor version
+ Wire.endTransmission(1); // send stop sequence (true(1)); master will release I2C bus
+
+ Wire.requestFrom(DEVICE_ADDRESS, NUM_BYTES); // request 8 bytes from DEVICE_ADDRESS
+ while (Wire.available()) // while available,
+ {
+   s[i++] = Wire.read(); // i++ increments i so we can store the new data in a sequential space on the array
+ }
+ s[i] = '\0'; // all strings in C are terminated with a zero (null character); need zero because zeros terminate strings and tells the print ln when to stop.
+ return i; // length of the string contained in variable i 
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+int motor1(int percent)
+{
+ // if percentage is between -100 and 100
+ if (-100 <= percent && percent <= 100) 
+ {
+ // set motor 1 to percentage value
+    Wire.beginTransmission(DEVICE_ADDRESS); //begin transmission at DEVICE_ADDRESS (connect to device 0x05
+    Wire.write(M1_POWER); // write to motor 1 power address
+    Wire.write(percent); // send the data byte; write the percent specified when function is called to above motor 
+    Wire.endTransmission(0); // send a restart message to keep the connection alive (false(0)); master will not release bus
+    return 1; // return true (1)
+ }
+ // else return false (0)
+ else
+    return 0;
+}
+
+int motor2(int percent)
+{
+ // if percentage is -100<=percent<=100
+ if (-100 <= percent && percent <= 100) 
+ {
+ // then set motor 2 to percentage value
+    Wire.beginTransmission(DEVICE_ADDRESS); //begin transmission at DEVICE_ADDRESS (connect to device 0x05)
+    Wire.write(M2_POWER); // write to motor 2 power address
+    Wire.write(percent); // send data byte; write the percent specified when function is called to the motor above
+    Wire.endTransmission(0); // send a restart message to keep the connection alive (false(0)); master will not release bus
+    return 1; // return true (1)
+ }
+ // else return false (0)
+ else
+    return 0;
+}
+
+int encoderRead1()
+{
+    Wire.beginTransmission(DEVICE_ADDRESS);
+    Wire.write(M1_ENCODER_WRITE);
+    Serial.println(Wire.rea(M1_ENCODER_READ)); 
+     //Serial.print(Wire.read());
+    Wire.endTransmission(0); 
+    
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+int motor1and2(int pwr1, int pwr2)
+{
+ //set motor 1 and motor 2 to move at the same time by setting power
+ motor1(pwr1);
+ motor2(pwr2);
+} 
+ 
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+void stop(void)
+{
+ //stop motors by setting power to 0
+ motor1(0);
+ motor2(0);
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+void turnLeft(int pwr, long t) //t is in miliseconds
+{
+ //Turn robot left: send right wheel forward and left back
+ // write the percent specified when function is called to motor 1 and motor 2
+ motor1(-pwr);
+ motor2(-pwr);
+ delay(t);
+ stop();
+}
+
+void turnRight(int pwr, long t) //t is in miliseconds
+{
+ //Turn robot right: send left wheel forward and right back
+ // write the percent specified when function is called to motor 1 and motor 2
+ motor1(pwr); 
+ motor2(pwr);
+ delay(t);
+ stop();
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+void straight(int pwr, long t) //t is in miliseconds
+{
+ motor1and2(pwr, -pwr);
+ delay(t);
+ stop();
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+void reverse(int pwr, long t) //t is in miliseconds
+{
+ motor1and2(-pwr, pwr);
+ delay(t);
+ stop();
+}
+
+
+void straightTest(void)
+{
+ straight(10, 1000);
+ stop();
+ delay(2000);
+ straight(10, 2500);
+ stop();
+ delay(2000);
+ straight(10, 5000);
+ stop();
+ delay(1000);
+}
+
+
+void turnRightTest(void)
+{
+ turnRight(25, 850);
+ stop();
+ delay(2000);
+ turnRight(25, 875);
+ stop();
+ delay(2000);
+ turnRight(25, 900);
+ stop();
+ delay(1000);
+}
+
+void turnLeftTest(void)
+{
+ turnLeft(25, 850);
+ stop();
+ delay(2000);
+ turnLeft(25, 875);
+ stop();
+ delay(2000);
+ turnLeft(25, 900);
+ stop();
+ delay(2000);
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+void exampleRun(void)
+{
+ straight(10, 2105); // moves robot forward about 20 in (when power is set to 10%)
+ stop();
+ turnLeft(25, 875); // when testing turns, running for 8.75 seconds seemed to create a 90 degree turn (left)on the surface tested (when power was set to 25%)
+ stop();
+ delay(500);
+ straight(10, 3158); // moves robot forward about 30 in (when power is set to 10%)
+ stop();
+ reverse(10, 1053); // reverses robot about 10 in (when power is set to 10%)
+ stop();
+ turnRight(25, 850); // when testing turns, running for 8.5 seconds seemed to create a 90 degree turn (right) on the surface tested (when power was set to 25%)
+ stop();
+ straight(10, 4210); // moves robot forward about 40 in (when power is set to 10%)
+ stop();
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+void setup()
+{
+ Serial.begin(9600);
+ Wire.begin(); // join i2c bus (address optional for master)
+}
+
+void loop()
+{
+ char a[10];
+ int length;
+ length = getSensorType(a);
+ Serial.println(a);
+ while(true){
+ encoderRead1();
+ delay(500);
+ }
+ 
+ //exampleRun();
+ 
+ 
+ while(true); // while loop exits once the condition is false; in this case it never is so we are stuck here and the loop doesn't repeat
+}
